@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Psychology of Wildlife Conservation Experiment</title>
+    <script src="jspsych/jspsych.js"></script>
+    <script src="jspsych/plugin-html-keyboard-response.js"></script>
+    <script src="jspsych/plugin-html-button-response.js"></script>
+    <script src="jspsych/plugin-image-button-response.js"></script>
+    <script src="AVOKE/plugin-audio-visual-response/index.js"></script>
+    <script src="jspsych/plugin-survey-likert.js"></script>
+    <script src="jspsych/plugin-preload.js"></script>
+    <script src="jspsych/plugin-survey-html-form.js"></script>
+    <script src="jspsych/plugin-audio-button-response.js"></script>
+    <script src="jatos.js"></script>
+    <link href="jspsych/jspsych.css" rel="stylesheet" type="text/css" />
+</head>
+<body></body>
+<script>
+
+const jsPsych = initJsPsych({
+    on_finish: () => jatos.startNextComponent(jsPsych.data.get().json())
+});
+
+const timeline = [];
+
+jatos.onLoad(() => {
+const preload = {
+    type: jsPsychPreload,
+    images: [
+        "images/amphibian1.png","images/amphibian3.png","images/amphibian4.png",
+        "images/arachnid1.png","images/arachnid3.png","images/bivalve1.png",
+        "images/fish15.png","images/insect2.png","images/insect3.png","images/insect8.png","images/insect13.png",
+        "images/mammal13.png","images/mammal14.png","images/mammal16.png","images/mammal17.png",
+        "images/mammal19.png","images/mammal23.png","images/mammal25.png","images/mammal31.png",
+        "images/mammal34.png","images/mammal35.png"
+    ],
+    audio: [
+        "audio/birds-chirping-ambiance-26052.mp3",
+        "audio/Jazz_LOW_21.mp3","audio/Jazz_LOW_18.mp3","audio/Jazz_LOW_17.mp3","audio/Jazz_LOW_15.mp3",
+        "audio/Funk_LOW_14.mp3","audio/Funk_LOW_10.mp3","audio/Funk_LOW_08.mp3",
+        "audio/Film_LOW_04.mp3","audio/60s_LOW_14.mp3","audio/60s_LOW_10.mp3"
+    ]
+};
+timeline.push(preload);
+
+const musicFiles = [
+    "audio/Jazz_LOW_21.mp3","audio/Jazz_LOW_18.mp3","audio/Jazz_LOW_17.mp3",
+    "audio/Jazz_LOW_15.mp3","audio/Funk_LOW_14.mp3","audio/Funk_LOW_10.mp3",
+    "audio/Funk_LOW_08.mp3","audio/Film_LOW_04.mp3","audio/60s_LOW_14.mp3","audio/60s_LOW_10.mp3"
+];
+
+let favouredImages = [
+    "images/mammal17.png","images/mammal31.png","images/mammal23.png","images/mammal16.png",
+    "images/mammal19.png","images/mammal13.png","images/mammal14.png","images/mammal25.png",
+    "images/fish15.png","images/mammal35.png"
+];
+
+let unfavouredImages = [
+    "images/amphibian1.png","images/amphibian3.png","images/amphibian4.png",
+    "images/arachnid1.png","images/arachnid3.png","images/bivalve1.png",
+    "images/insect2.png","images/insect3.png","images/insect8.png","images/insect13.png"
+];
+
+favouredImages = jsPsych.randomization.shuffle(favouredImages);
+unfavouredImages = jsPsych.randomization.shuffle(unfavouredImages);
+
+let favMusic = favouredImages.slice(0,5);
+let favNoMusic = favouredImages.slice(5);
+let unfavMusic = unfavouredImages.slice(0,5);
+let unfavNoMusic = unfavouredImages.slice(5);
+
+const musicImageList = jsPsych.randomization.shuffle(favMusic.concat(unfavMusic));
+const noMusicImageList = jsPsych.randomization.shuffle(favNoMusic.concat(unfavNoMusic));
+
+const first_condition = jsPsych.randomization.shuffle(["music","no music"])[0];
+
+//WELCOME
+
+const welcome = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+<h2>Welcome!</h2>
+<p>Welcome to the <em>Psychology of Wildlife Conservation</em> study. Press any key to begin.</p>
+`
+};
+timeline.push(welcome);
+
+//INSTRUCTIONS
+
+const instructions = {
+    type: jsPsychHtmlButtonResponse,
+    stimulus: `<p>Thank you for volunteering to participate in the <em>Psychology of Wildlife Conservation</em> study.</p>
+      <p><strong>Important:</strong> Please do not take part in this study if you have specific animal phobias.</p>
+      <p>During this study, you will view images of various animals and respond to a Likert-scale question associated with each image. Because of this, it is important that you do not have specific animal phobias. Please prioritize your well-being when deciding whether to participate.</p>
+      <p>The study will take approximately 10 minutes to complete. You must have normal or corrected-to-normal vision and hearing.</p>
+      <p>Participants must have sufficient English reading proficiency to understand the study instructions.</p>
+      <p>You must be 16 years of age or older to participate.</p>
+      <p>If you are using headphones, please ensure they are properly connected.</p>
+      <p>Please make sure your computer or laptop is connected to a power source and that you have a stable internet connection before beginning.</p>
+      <p>Press any key to begin.</p>`,
+    choices: ['I understand the instructions']
+      };
+timeline.push(instructions);
+
+const consent = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+<h2>Letter of Information/ Consent Form</h2>
+
+<p><strong>Study Title:</strong> Psychology of Wildlife Conservation</p>
+
+<p><strong>Faculty Supervisor:</strong> Dr. Lauren Fink, Ph.D.</p>
+<p><strong>Student Principal Investigator:</strong> Grace Manninen</p>
+
+<p><strong>Prerequisites:</strong> Before proceeding to the study, please confirm that you:</p>
+<p> Are 16 years of age or older </p>
+<p> Have normal/corrected-to-normal vision </p>
+<p> Have normal/corrected-to-normal hearing </p>
+<p> Do not have a specific animals phobia </p>
+<p> Have sufficient English reading proficiency </p>
+
+<p><strong>Purpose of the Study:</strong><br>
+This study examines factors that influence human attitudes and responses toward wildlife and conservation-related topics.</p>
+
+<p><strong>What You Will Be Asked to Do:</strong><br>
+You will be participating in an online study using your personal laptop within your preferred environment. The experiment will be done on an easy-to-use
+platform. You will view 20 various animal species, and will be asked one Likert-Scale question about your reaction and attitudes towards that species.</p>
+
+<p><strong>Time Commitment:</strong><br>
+The study will take approximately 10 minutes to complete.</p>
+
+<p><strong>Risks or Discomforts:</strong><br>
+Some images may depict animals that could cause mild emotional discomfort. Participants with specific animal phobias are asked to not take part. You may withdraw from the study at any time without penalty.</p>
+
+<p><strong>Benefits:</strong><br>
+There are no direct personal benefits from participating. Your participation will contribute to research on animal-conservation psychology.</p>
+
+<p><strong>Incentive/Payment or Reimbursement:</strong><br>
+If you're participating through the McMaster University's SONA platform, 0.5 study credits will be awarded for completing the study.</p>
+
+<p><strong>Voluntary Participation:</strong><br>
+Your participation is completely voluntary. You may stop participating at any time by closing your browser window, without penalty.</p>
+
+<p><strong>Demographic Information:</strong><br>
+You will be asked to provide general demographic information, including your age, your highest level of study, and the type of area you live in (e.g., urban or rural). This information will be used for research purposes only and cannot be used to identify you.</p>
+
+<p><strong>Confidentiality:</strong><br>
+All responses will be collected anonymously and used for research purposes only. No identifying information will be collected.</p>
+
+<p><strong>Incomplete Disclosure:</strong><br>
+To preserve the scientific validity of the study, some details about the study purpose cannot be fully explained at this time. A full explanation will be provided at the end of the study.</p>
+
+<p><strong>Participation and Withdrawal:</strong><br>
+Your participation in this study is voluntary. If you decide to not be a part of the study, you can stop(withdraw) from the experiment for whatever reason, even after giving consent, or part-way through the study</p>
+<p>For SONA participants, study credits awarded for the study will not be reversed upon withdrawl.
+<p><strong>Contact Information:</strong><br>
+If you have questions about this study, please contact the researcher at mannineg@mcmaster.</p>
+
+<p><strong>Consent:</strong><br></p>
+<p>I have read the information presented in the information letter above</p>
+<p>I understand that if I agree to participate in this study, I may withdraw from the study at any time.</p>
+<p>I agree to participate in the study.</p>
+<p> This study has been reviewed by the McMaster Research Ethics Board and received ethics clearance under project # 7997. If you have concerns or questions about your rights as a participant or about the way the study is conducted, please contact the McMaster Research Ethics Office, by phone: (905) 525-9140 ext. 23142 or e-mail: mreb@mcmaster.ca
+      `,
+      choices: ['I agree'],
+      prompt: "<p>By checking the above, you confirm that you meet the above criteria and that you provide your consent to participate in this study. You are free to revoke your consent at any time, by exiting the experiment before its completion</p>",
+      };
+timeline.push(consent);
+
+const test_instructions = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: '<p>Now, there is going to be a check to see if images and sounds load properly</p><p>On each trial, please select what you observe/hear by clicking the corresponding button</p>',
+  choices: ['Continue']
+};
+timeline.push(test_instructions)
+
+const test_image = {
+  type: jsPsychImageButtonResponse,
+  stimulus: "images/mammal34.png",
+  choices: ['Seal', 'Polarbear'],
+  prompt: "<p>What Animal is being displayed?</p>",
+  
+  data: {trial: "test_image"},
+  
+  on_finish: function(data){
+    data.choice_label = ['Seal','Polarbear'][data.response];
+  }
+};
+
+timeline.push(test_image);
+   
+const test_audio = {
+  type: jsPsychAudioButtonResponse,
+  stimulus: "audio/birds-chirping-ambiance-26052.mp3",
+  choices: ['Ocean Waves', 'Birds'],
+  prompt: "<p>What do you hear?</p>",
+  
+  data: {trial: "test_audio"},
+  
+  on_finish: function(data){
+    data.choice_label = ['Ocean Waves','Birds'][data.response];
+  }
+};
+
+timeline.push(test_audio);
+
+
+const experiment_instructions = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: '<p>The experiment is now going to start</p><p>An image of an animal will appear on your screen, the button to proceed will function after 10 seconds, after you press the button you will be asked to answer one question regarding that animal</p>',
+  choices: ['Proceed to Experiment']
+};
+timeline.push(experiment_instructions);
+
+const experimentstart = {
+  type: jsPsychHtmlButtonResponse,
+      stimulus: `<p>Please click the button to proceed to the experiment.</p>
+      <p> Remember, if at any point you would like to exit the experiment, you can without penelty.</p>`,
+      choices: ['Proceed to Experiment'],
+};
+timeline.push(experimentstart);
+
+function createMusicImageTrial(imagePath, audioFile) {
+    let audio = new Audio(audioFile); // create separate audio object
+    return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `<img src="${imagePath}" style="max-width:600px;">`,
+        choices: ["Next"],
+        on_load: () => {
+            audio.play(); // start audio
+            // disable button at start
+            const btn = document.querySelector('.jspsych-btn');
+            btn.disabled = true;
+            // enable button after 10s
+            setTimeout(() => {
+                btn.disabled = false;
+            }, 10000);
+        },
+        on_finish: () => {
+            audio.pause();
+            audio.currentTime = 0;
+        },
+        data: { image: imagePath, music: true, audioFile: audioFile }
+    };
+}
+
+function createNoMusicImageTrial(imagePath) {
+    return {
+        type: jsPsychHtmlButtonResponse,
+        stimulus: `<img src="${imagePath}" style="max-width:600px;">`,
+        choices: ["Next"],
+        on_load: () => {
+            const btn = document.querySelector('.jspsych-btn');
+            btn.disabled = true; // disable initially
+            setTimeout(() => {
+                btn.disabled = false;
+            }, 10000); // enable after 10s
+        },
+        data: { image: imagePath, music: false }
+    };
+}
+
+function createLikertTrial() {
+    return {
+        type: jsPsychSurveyLikert,
+        questions: [{
+            prompt: "I would want to care for or protect this species.",
+            labels: [
+                "Strongly disagree","Disagree","Somewhat disagree",
+                "Neither agree nor disagree","Somewhat agree","Agree","Strongly agree"
+            ],
+            required: true
+        }]
+    };
+}
+
+// Assign audio files randomly without repetition
+let availableMusicFiles = jsPsych.randomization.shuffle([...musicFiles]);
+
+if (first_condition === "music") {
+    musicImageList.forEach(img => {
+        const audioFile = availableMusicFiles.pop();
+        timeline.push(createMusicImageTrial(img, audioFile));
+        timeline.push(createLikertTrial());
+    });
+    noMusicImageList.forEach(img => {
+        timeline.push(createNoMusicImageTrial(img));
+        timeline.push(createLikertTrial());
+    });
+} else {
+    noMusicImageList.forEach(img => {
+        timeline.push(createNoMusicImageTrial(img));
+        timeline.push(createLikertTrial());
+    });
+    musicImageList.forEach(img => {
+        const audioFile = availableMusicFiles.pop();
+        timeline.push(createMusicImageTrial(img, audioFile));
+        timeline.push(createLikertTrial());
+    });
+}
+
+const after_trials = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: `<p>The trials are now complete, thank you for your responses</p><p>Following, we ask you few demographic related questions. If you wish not to answer them please select 'I choose not to say' for each question</p><p>Thank you!</p>`,
+  choices: ['Proceed to Demographic Questions']
+}
+timeline.push(after_trials);
+
+
+const demographics_age = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: "What is your age",
+  choices: ['16-19', '20-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50+', 'I choose not to say']
+}
+timeline.push(demographics_age);
+
+const demographics_levelofstudy = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: "What is your highest level of study",
+  choices: ['DID NOT COMPLETE HIGHSCHOOL', 'COMPLETED HIGHSCHOOL', 'CURRENTLY IN UNDERGRAD',
+  'COMPLETED UNDERGRAD', 'CURRENTLY IN MASTERS', 'COMPLETED MASTERS', 'IN PHD', 'COMPLETED PHD', 'I choose not to say']
+}
+timeline.push(demographics_levelofstudy);
+
+const demographics_area = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: "Did you grow up in a rural or urban setting",
+  choices: ['RURAL', 'URBAN', 'I choose not to say']
+}
+timeline.push(demographics_area);
+ 
+const demographic_gender = {
+  type: jsPsychHtmlButtonResponse,
+  stimulus: "What is your gender identity",
+  choices: ['woman', 'man', 'non-binary person', 'I choose not to say']
+}
+timeline.push(demographic_gender);
+
+
+const thankYou = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: `
+<h2>Thank You!</h2>
+
+<p>We greatly appreciate your time and participation in this study.</p>
+
+<p>If you have any questions or would like to learn more about the research, please contact the researcher at mannineg@mcmaster.ca.</p>
+
+<p>Press any key to finish.</p>
+`
+};
+timeline.push(thankYou);
+
+jsPsych.run(timeline);
+});
+
+</script>
+</html>
+
