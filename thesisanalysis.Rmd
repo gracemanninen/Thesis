@@ -1,0 +1,412 @@
+---
+title: "analysis code"
+author: "Grace Manninen"
+date: "2025-03-24"
+output: html_document
+---
+loading in packages/libraries
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(stringr)
+library(ggplot2)
+
+library(lme4)
+library(lmerTest)
+library(emmeans)
+library(jsonlite)
+library(readr)
+library(tools)
+```
+
+define favoured/unfavoured images
+```{r}
+favouredImages <- c(
+  "images/mammal17.png","images/mammal31.png","images/mammal23.png","images/mammal16.png",
+  "images/mammal19.png","images/mammal13.png","images/mammal14.png","images/mammal25.png",
+  "images/fish15.png","images/mammal35.png"
+)
+
+unfavouredImages <- c(
+  "images/amphibian1.png","images/amphibian3.png","images/amphibian4.png",
+  "images/arachnid1.png","images/arachnid3.png","images/bivalve1.png",
+  "images/insect2.png","images/insect3.png","images/insect8.png","images/insect13.png"
+)
+```
+
+Set directory with Raw Data 
+```{r}
+datadir <- "/Users/gracemanninen/Desktop/Experiment - Thesis/pilot data/"
+files <- list.files(datadir, pattern = "\\.txt$", full.names = TRUE)
+```
+
+Read and Combine all .txt files
+```{r}
+raw_data <- map_dfr(files, function(f) {
+  read_file(f) %>%
+    str_split("\n") %>%
+    first() %>%
+    discard(~ .x == "") %>%
+    map_dfr(fromJSON, flatten = TRUE) %>%
+    mutate(
+      source_file = basename(f),
+      participant_id = file_path_sans_ext(basename(f))
+    )
+})
+
+# Add species type column
+raw_data <- raw_data %>%
+  mutate(
+    species_type = case_when(
+      image %in% favouredImages ~ "favoured",
+      image %in% unfavouredImages ~ "unfavoured",
+      TRUE ~ NA_character_   # For images that are neither
+    )
+  )
+```
+
+
+```{r}
+# Separate trials
+image_trials <- raw_data %>% filter(trial_type == "image-button-response")
+audio_trials <- raw_data %>% filter(trial_type == "audio-button-response")
+likert_trials <- raw_data %>% filter(trial_type == "survey-likert")
+
+# Quick check
+table(image_trials$trial_type)
+table(audio_trials$trial_type)
+table(likert_trials$trial_type)
+```
+
+```{r}
+library(dplyr)
+library(stringr)
+
+# Extract image trials from html-button-response
+image_trials <- raw_data %>%
+  filter(trial_type == "html-button-response") %>%
+  mutate(
+    image = str_extract(stimulus, "images/[^\"']+\\.png")
+  ) %>%
+  filter(!is.na(image)) %>%   # keep only rows that actually contain images
+  select(participant_id, trial_index, image, music, audioFile, species_type)
+
+# Check
+head(image_trials, 20)
+nrow(image_trials)
+```
+
+
+
+```{r}
+likert_trials <- raw_data %>%
+  filter(trial_type == "survey-likert") %>%
+  select(participant_id, trial_index, response) %>%
+  mutate(
+    likert_score = as.numeric(response)
+  )
+
+# Check
+head(likert_trials, 20)
+nrow(likert_trials)
+```
+
+```{r}
+library(dplyr)
+
+# Add order within each participant
+image_trials <- image_trials %>%
+  group_by(participant_id) %>%
+  mutate(order = row_number()) %>%
+  ungroup()
+
+likert_trials <- likert_trials %>%
+  group_by(participant_id) %>%
+  mutate(order = row_number()) %>%
+  ungroup()
+
+# Join them
+combined_data <- likert_trials %>%
+  left_join(image_trials, by = c("participant_id", "order"))
+
+# Check result
+head(combined_data, 20)
+nrow(combined_data)
+```
+
+```{r}
+likert_trials$response[1]
+str(likert_trials$response)
+
+likert_trials <- likert_trials %>%
+  mutate(
+    likert_score = sapply(response, function(x) {
+      if (is.list(x)) {
+        as.numeric(x[[1]])
+      } else {
+        as.numeric(x)
+      }
+    })
+  )
+
+head(likert_trials,20)
+summary(likert_trials$likert_score)
+```
+
+```{r}
+# Join datasets
+combined_data <- likert_trials %>%
+  left_join(image_trials, by = c("participant_id", "order"))
+
+# Keep only what we need
+combined_data <- combined_data %>%
+  mutate(
+    music_condition = ifelse(is.na(audioFile), "no_music", "music")
+  ) %>%
+  select(participant_id, likert_score, image, species_type, audioFile, music_condition)
+
+# Check
+head(combined_data, 20)
+nrow(combined_data)
+```
+
+```{r}
+plot_data <- combined_data %>%
+  group_by(music_condition, species_type) %>%
+  summarise(
+    mean_score = mean(likert_score, na.rm = TRUE),
+    se = sd(likert_score, na.rm = TRUE) / sqrt(n()),
+    .groups = "drop"
+  )
+
+plot_data
+
+library(ggplot2)
+
+ggplot(plot_data, aes(
+  x = interaction(music_condition, species_type),
+  y = mean_score,
+  fill = music_condition
+)) +
+  geom_bar(stat = "identity") +
+  geom_errorbar(aes(
+    ymin = mean_score - se,
+    ymax = mean_score + se
+  ), width = 0.2) +
+  labs(
+    x = "Condition",
+    y = "Mean Likert Score",
+    title = "Pro-Conservation Attitudes by Music and Species Type"
+  ) +
+  theme_minimal()
+```
+
+SIMULATED DATA 
+```{r}
+set.seed(123)
+n_participants <- 40
+
+datasim <- data.frame()
+
+for (p in 1:n_participants) 
+  
+  simulate_likert <- function(n, mean, sd) {
+  round(pmin(pmax(rnorm(n, mean, sd), 0), 6)) # round and clamp to 1–7
+  }
+  
+  # 5 ratings per condition
+  music_fav <- simulate_likert(5, mean = 5.7, sd = 0.2)
+  music_unfav <- simulate_likert(5, mean = 4, sd = 0.2)
+  nomusic_fav <- simulate_likert(5, mean = 4.6, sd = 0.2)
+  nomusic_unfav <- simulate_likert(5, mean = 1, sd = 0.3)
+  
+n_participants <- 40 
+demographics_age <- sample( c('16-19', '20-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50+', 'I choose not to say'), n_participants, replace = TRUE, prob = c(0.30, 0.30, 0.20, 0.07, 0.05, 0.03, 0.02, 0.02, 0.01) ) 
+
+demographics_levelofstudy <- sample( c('DID NOT COMPLETE HIGHSCHOOL', 'COMPLETED HIGHSCHOOL', 'CURRENTLY IN UNDERGRAD', 'COMPLETED UNDERGRAD', 'CURRENTLY IN MASTERS', 'COMPLETED MASTERS', 'IN PHD', 'COMPLETED PHD', 'I choose not to say'), n_participants, replace = TRUE, prob = c(0.01, 0.04, 0.70, 0.10, 0.05, 0.03, 0.03, 0.03, 0.01) ) 
+
+demographics_area <- sample( c('RURAL', 'URBAN', 'I choose not to say'), n_participants, replace = TRUE ) 
+
+demographics_gender <- sample( c('woman', 'man', 'non-binary person', 'I choose not to say'), n_participants, replace = TRUE )
+
+participantsim <- rep(1:40, each = 20) 
+musicsim <- rep(c(rep("yes", 10), rep("no", 10)), 40)
+species_typesim <- rep(c(rep("favoured", 5), rep("unfavoured", 5), rep("favoured", 5), rep("unfavoured", 5)), 40) 
+
+ratingsim <- c(music_favsim, music_unfavsim, nomusic_favsim, nomusic_unfavsim) 
+
+datasim <- data.frame(participantsim, musicsim, species_typesim, ratingsim) 
+
+datasim$age <- as.factor(rep(demographics_age, each = 20)) 
+
+datasim$education <- as.factor(rep(demographics_levelofstudy, each = 20)) 
+
+datasim$rural_urban <- as.factor(rep(demographics_area, each = 20)) 
+
+datasim$gender <- as.factor(rep(demographics_gender, each = 20)) 
+
+datasim$musicsim <- as.factor(datasim$musicsim) 
+
+datasim$species_typesim <- as.factor(datasim$species_typesim) 
+
+datasim$participantsim <- as.factor(datasim$participantsim)
+
+modelsim_demo <- lmer( ratingsim ~ musicsim * species_typesim + age + education + rural_urban + gender + (1 | participantsim), data = datasim ) summary(modelsim_demo)
+
+  
+```
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# -------------------------------
+# Participant-level summary for repeated measures
+# -------------------------------
+summary_data <- datasim %>%
+  group_by(participant, musicsim, species_typesim) %>%
+  summarise(mean_participant = mean(ratingsim), .groups = "drop") %>%
+  group_by(musicsim, species_typesim) %>%
+  summarise(
+    mean_rating = mean(mean_participant),
+    se_rating = sd(mean_participant) / sqrt(n()),
+    .groups = "drop"
+  )
+
+# -------------------------------
+# Bar graph
+# -------------------------------
+ggplot(summary_data, aes(x = species_typesim, y = mean_rating, fill = musicsim)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  geom_errorbar(aes(ymin = mean_rating - se_rating, ymax = mean_rating + se_rating),
+                width = 0.2, position = position_dodge(width = 0.8)) +
+  labs(
+    x = "Species Type",
+    y = "'I would want to care for or protect this species'",
+    fill = "Music Condition",
+    title = "Effect of Music and Species Type on Pro-Conservation Attitudes"
+  ) +
+  scale_fill_manual(
+    values = c("#6693F5", "#FF9500"),
+    labels = c("No Music", "Music")
+  ) +
+  theme_light(base_size = 14) +
+  theme(
+    axis.title = element_text(size = 12),     
+    axis.text = element_text(size = 12),        
+    legend.title = element_text(size = 12),     
+    legend.text = element_text(size = 12),
+    plot.title = element_text(size = 13, face = "bold"))
+```
+
+```{r}
+# Load packages
+library(lme4)
+library(dplyr)
+
+set.seed(123)
+
+# Number of participants
+n_participants <- 40
+
+# Simulate demographics once for all participants
+demographics <- data.frame(
+  participant = 1:n_participants,
+  age = sample(c('16-19','20-24','25-29','30-34','35-39','40-44','45-49','50+','I choose not to say'), 
+               n_participants, replace = TRUE, prob = c(0.30,0.30,0.20,0.07,0.05,0.03,0.02,0.02,0.01)),
+  education = sample(c('DID NOT COMPLETE HIGHSCHOOL','COMPLETED HIGHSCHOOL','CURRENTLY IN UNDERGRAD','COMPLETED UNDERGRAD','CURRENTLY IN MASTERS','COMPLETED MASTERS','IN PHD','COMPLETED PHD','I choose not to say'),
+                     n_participants, replace = TRUE, prob = c(0.01,0.04,0.70,0.10,0.05,0.03,0.03,0.03,0.01)),
+  rural_urban = sample(c('RURAL','URBAN','I choose not to say'), n_participants, replace = TRUE),
+  gender = sample(c('woman','man','non-binary person','I choose not to say'), n_participants, replace = TRUE)
+)
+
+# Function to simulate Likert ratings (0–6)
+simulate_likert <- function(n, mean, sd) {
+  round(pmin(pmax(rnorm(n, mean, sd), 0), 6))
+}
+
+# Initialize empty data frame
+datasim <- data.frame()
+
+# Loop over participants to simulate ratings
+for (p in 1:n_participants) {
+  
+  # 5 ratings per condition
+  music_fav <- simulate_likert(5, mean = 5.7, sd = 0.2)
+  music_unfav <- simulate_likert(5, mean = 4, sd = 0.2)
+  nomusic_fav <- simulate_likert(5, mean = 4.6, sd = 0.2)
+  nomusic_unfav <- simulate_likert(5, mean = 1, sd = 0.3)
+  
+  # Combine ratings
+  ratings <- c(music_fav, music_unfav, nomusic_fav, nomusic_unfav)
+  musics <- c(rep("yes", 10), rep("no", 10))
+  species <- c(rep("favoured",5), rep("unfavoured",5), rep("favoured",5), rep("unfavoured",5))
+  
+  # Combine with participant demographics
+  temp <- data.frame(
+    participantsim = p,
+    musicsim = musics,
+    species_typesim = species,
+    ratingsim = ratings,
+    age = rep(demographics$age[p], 20),
+    education = rep(demographics$education[p], 20),
+    rural_urban = rep(demographics$rural_urban[p], 20),
+    gender = rep(demographics$gender[p], 20)
+  )
+  
+  # Append to main dataset
+  datasim <- rbind(datasim, temp)
+}
+
+# Convert to factors
+datasim <- datasim %>%
+  mutate(
+    participantsim = as.factor(participantsim),
+    musicsim = as.factor(musicsim),
+    species_typesim = as.factor(species_typesim),
+    age = as.factor(age),
+    education = as.factor(education),
+    rural_urban = as.factor(rural_urban),
+    gender = as.factor(gender)
+  )
+
+# Fit linear mixed-effects model
+modelsim_demo <- lmer(
+  ratingsim ~ musicsim * species_typesim + age + education + rural_urban + gender + (1 | participantsim),
+  data = datasim
+)
+
+# View summary
+summary(modelsim_demo)
+
+# Optional: Check average ratings per condition
+datasim %>%
+  group_by(musicsim, species_typesim) %>%
+  summarise(mean_rating = mean(ratingsim),
+            sd_rating = sd(ratingsim),
+            .groups = 'drop')
+
+ggplot(summary_data, aes(x = species_typesim, y = mean_rating, fill = musicsim)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  geom_errorbar(aes(ymin = mean_rating - se_rating, ymax = mean_rating + se_rating),
+                width = 0.2, position = position_dodge(width = 0.8)) +
+  labs(
+    x = "Species Type",
+    y = "Pro-Conservation Attitudes",
+    fill = "Music Condition",
+    title = "Effect of Music and Species Type on Pro-Conservation Attitudes"
+  ) +
+  scale_fill_manual(
+    values = c("#6693F5", "#FF9500"),
+    labels = c("No Music", "Music")
+  ) +
+  theme_light(base_size = 14) +
+  theme(
+    axis.title = element_text(size = 12),     
+    axis.text = element_text(size = 12),        
+    legend.title = element_text(size = 12),     
+    legend.text = element_text(size = 12),
+    plot.title = element_text(size = 13, face = "bold"))
+```
+
